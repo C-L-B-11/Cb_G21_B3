@@ -1,0 +1,94 @@
+program             ::= functiondefinition program 
+program             ::= EF
+
+functiondefinition  ::= type ID ( ) { statementlist }
+functioncall        ::= ( )
+
+statementlist       ::= block statementlist
+statementlist       ::= ''
+
+
+block               ::= { statementlist }
+block               ::= statement
+
+statement           ::= ifstatement
+statement           ::= returnstatement ;
+statement           ::= printf ;
+statement           ::= ID statement2 ;
+
+statement2           ::= functioncall
+statement2           ::= statassignment
+
+ifstatement         ::= KF ( assignment ) block
+
+returnstatement     ::= KR returnstatement2
+
+returnstatement2    ::= assignment
+returnstatement2    ::= ''
+
+printf              ::= KP ( assignment )
+
+type                ::= KB
+type                ::= KF
+type                ::= KI
+type                ::= KV
+
+statassignment      ::= = assignment
+
+assignment          ::= ID assignment2
+assignment          ::= exprOI
+
+assignment2          ::= = assignment
+assignment2          ::= exprMI
+
+expr                ::= simpexpr expr2
+	
+exprMI				::=simpexprMI expr2
+exprOI				::=simpexprOI expr2
+
+expr2				::= operator simpexpr
+expr2				::= ''
+
+operator			::= >
+operator			::= <
+operator			::= >=
+operator			::= <=
+operator			::= ==
+operator			::= !=
+
+simpexpr            ::= - term simpexpr2
+simpexpr            ::= term simpexpr2
+
+simpexprMI			::= termMI simpexpr2
+simpexprOI			::= - term simpexpr2
+simpexprOI			::= termOI simpexpr2
+
+simpexpr2			::= + term simpexpr2
+simpexpr2			::= - term simpexpr2
+simpexpr2			::= || term simpexpr2
+simpexpr2			::= ''
+
+term                ::= factor term2
+
+termMI				::=factor2  term2
+termOI				::=factorOI  term2
+
+term2				::= * factor term2
+term2				::= / factor term2
+term2				::= && factor term2
+term2				::= ''
+
+
+factor              ::= CI
+factor              ::= CF
+factor              ::= CB
+factor              ::= ID factor2
+factor              ::= ( assignment )
+
+factorOI              ::= CI
+factorOI              ::= CF
+factorOI              ::= CB
+factorOI              ::= ( assignment )
+
+factor2           	::= functioncall
+factor2				::= ''
