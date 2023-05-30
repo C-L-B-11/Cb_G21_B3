@@ -30,20 +30,22 @@
 
     /// program ::= ( functiondefinition )* <EOF>
     fn program(&mut self) -> ParseResult {
-        if self.peek_token()==None
+        if self.current_token() == None
         {
-            Ok(())
+            return Ok(());
         }
-        else if self.any_match_current(&[C1Token::KwBoolean,C1Token::KwFloat,C1Token::KwInt,C1Token::KwVoid])
+        else if self.any_match_current(&[C1Token::KwBoolean, C1Token::KwFloat, C1Token::KwInt, C1Token::KwVoid])
         {
-            match self.functiondefinition(){
-                Ok(())=>return self.program(),
+            match self.functiondefinition() {
+                Ok(()) => { 
+                    return self.program();
+                },
                 Err(text)=>return Err(text),
             }
         }
         else
         {
-            return Err("Expected: functiondefinition program or <EOF>".to_string())
+            return Err("Expected: functiondefinition program or <EOF>".to_string());
         }
     }
 
@@ -51,13 +53,13 @@
         if self.any_match_current(&[C1Token::KwBoolean,C1Token::KwFloat,C1Token::KwInt,C1Token::KwVoid])
         {
             match self.return_type(){
-                Ok(())=>{
-                    match self.check_and_eat_tokens(&[C1Token::Identifier,C1Token::LeftParenthesis,C1Token::RightParenthesis,C1Token::LeftBrace],&"Expected: <ID>(){"){
-                        Ok(())=>{
+                Ok(()) =>{
+                    match self.check_and_eat_tokens(&[C1Token::Identifier,C1Token::LeftParenthesis,C1Token::RightParenthesis,C1Token::LeftBrace],"Expected: <ID>(){"){
+                        Ok(()) => {
                             match self.statement_list(){
-                                Ok(())=>{
-                                    return self.check_and_eat_token(&C1Token::RightBrace,&"Expected: }")
-                                }
+                                Ok(()) => {
+                                    return self.check_and_eat_token(&C1Token::RightBrace,"Expected: }");
+                                },
                                 Err(text)=>return Err(text),
                             }
                         },
@@ -67,126 +69,573 @@
                 Err(text)=>return Err(text),
             }
         }
+
         else
         {
-            return Err("Expected: type <ID> ( ) { statementlist }".to_string())
+            return Err("Expected: type <ID> ( ) { statementlist }".to_string());
         }
     }
 
     fn function_call(&mut self) -> ParseResult{
-        todo!();
+        return self.check_and_eat_tokens(&[C1Token::LeftParenthesis,C1Token::RightParenthesis],&"Expected: () {");
+                
     }
 
     fn statement_list(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::LeftBrace, C1Token::Identifier, C1Token::KwFloat, C1Token::KwReturn, C1Token::KwPrintf])
+        {
+            match self.block(){
+                Ok(()) => {
+                    return self.statement_list();
+                },
+                
+                Err(text)=>return Err(text),
+            }
+        }
+
+        else if self.any_match_current(&[C1Token::RightBrace]) || self.current_token() == None
+        {
+            return Ok(());
+        }
+
+        return Err("Expected: block or }".to_string());
+    
     }
 
     fn block(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::LeftBrace])
+        {
+            self.eat();
+            match self.statement_list(){
+                Ok(()) => {
+                    return self.check_and_eat_token(&C1Token::RightBrace, "Expected: }");
+                },
+                Err(text)=>return Err(text),
+            }
+        }
+
+        else if self.any_match_current(&[C1Token::Identifier, C1Token::KwFloat, C1Token::KwReturn, C1Token::KwPrintf])
+        {
+            return self.statement();
+        }
+
+        else
+        {
+            return Err("Expected: { or statement".to_string());
+        }
     }
 
     fn statement(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::KwFloat])
+        {
+            return self.if_statement();
+        }
+
+        else  if self.any_match_current(&[C1Token::KwReturn])
+        {
+            return self.return_statement();
+        }
+
+        else if self.any_match_current(&[C1Token::KwPrintf])
+        {
+            return self.printf();
+        }
+
+        else if self.any_match_current(&[C1Token::Identifier])
+        {
+            self.eat();
+            return self.statement2();
+                
+        }
+
+        else
+        {
+            return Err("Expected: ifstatement or returnstatement or printf or <ID>".to_string());
+        }
     }
 
     fn statement2(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::LeftParenthesis])
+        {
+            return self.function_call();
+        }
+
+        else  if self.any_match_current(&[C1Token::Assign])
+        {
+            return self.stat_assignment2();
+        }
+
+        else
+        {
+            return Err("Expected: functioncall or statassignment".to_string());
+        }
     }
 
     fn if_statement(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::KwIf])
+        {
+            self.eat();
+            match self.check_and_eat_token(&C1Token::LeftParenthesis, "Expected: (") {
+                Ok(()) => {
+                    match self.assignment() {
+                        Ok(()) => {
+                            match self.check_and_eat_token(&C1Token::RightParenthesis, "Expected: )") {
+                                Ok(()) => {
+                                    return self.block();
+                                },
+                                Err(text)=>return Err(text), 
+                            }
+                        },
+                        Err(text)=>return Err(text), 
+                    }
+                },
+                Err(text)=>return Err(text), 
+            }
+            
+        }
+
+        else 
+        {
+            return Err("Expected: <Kw_If>".to_string());
+        }
     }
 
     fn return_statement(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::KwReturn])
+        {
+            self.eat();
+            return self.return_statement2();
+        }
+
+        else 
+        {
+            return Err("Expected: <Kw_Return>".to_string());
+        }
     }
 
     fn return_statement2(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::Identifier, C1Token::Minus, C1Token::ConstInt, C1Token::ConstFloat, C1Token::ConstBoolean, C1Token::LeftParenthesis])
+        {
+            return self.assignment();
+        }
+        
+        else if self.any_match_current(&[C1Token::Semicolon]) || self.current_token() == None
+        {
+            return Ok(());
+        }
+
+        else 
+        {
+            return Err("Expected: assignment or ;".to_string());
+        }
     }
 
     fn printf(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::KwPrintf])
+        {
+            self.eat();
+            match self.check_and_eat_token(&C1Token::LeftParenthesis, "Expected (")
+            {
+                Ok(()) => {
+                    match self.assignment() {
+                        Ok(()) => {
+                            return self.check_and_eat_token(&C1Token::RightParenthesis, "Expected )")
+                        },
+                        Err(text)=>return Err(text),
+                    }
+                },
+                Err(text)=>return Err(text),  
+            }
+        }
+
+        else 
+        {
+            return Err("Expected: <Kw_Printf>".to_string());
+        }
     }
 
     fn return_type(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::KwBoolean, C1Token::KwFloat, C1Token::KwInt, C1Token::KwVoid])
+        {
+            self.eat();
+            return Ok(());
+        }
+
+        else 
+        {
+            return Err("Expected: <Kw_Boolean> or <Kw_Float> or <Kw_Int> or <Kw_Void>".to_string());
+        }
     }
 
     fn stat_assignment(&mut self) -> ParseResult{
-        todo!();
+        
+        match self.check_and_eat_tokens(&[C1Token::Identifier, C1Token::Assign], "Expected: Id ="){
+            Ok(()) => {
+                return self.assignment();
+            },
+            Err(text)=>return Err(text), 
+        }
+    }
+
+    fn stat_assignment2(&mut self) -> ParseResult{
+        match self.check_and_eat_token(&C1Token::Assign, "Expected: ="){
+            Ok(()) => {
+                return self.assignment();
+            },
+            Err(text)=>return Err(text), 
+        }
     }
 
     fn assignment(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::Identifier])
+        {
+            self.eat();
+            return self.assignment2();
+        }
+
+        else if self.any_match_current(&[C1Token::Minus, C1Token::ConstInt, C1Token::ConstFloat, C1Token::ConstBoolean, C1Token::Identifier, C1Token::LeftParenthesis])
+        {
+            return self.exproi();
+        }
+
+        else 
+        {
+            return Err("Expected: <ID> or exprMI".to_string());
+        }
     }
 
     fn assignment2(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::Assign])
+        {
+            self.eat();
+            return self.assignment();
+        }
+
+        else if self.any_match_current(&[C1Token::Plus, C1Token::Minus, C1Token::Or, C1Token::Less, C1Token::Greater, C1Token::LessEqual, C1Token::GreaterEqual, C1Token::Equal, C1Token::NotEqual, C1Token::LeftParenthesis, C1Token::Asterisk, C1Token::Slash, C1Token::And]) || self.current_token() == None
+        {
+            return self.exprmi();
+        }
+
+        else if self.any_match_current(&[C1Token::RightParenthesis, C1Token::Semicolon]) || self.current_token() == None
+        {
+            return Ok(());
+        }
+
+        else 
+        {
+            return Err("Expected: = or exprOI".to_string());
+        }
+
     }
 
-    fn expr(&mut self) -> ParseResult{
-        todo!();
+    fn expr(&mut self) -> ParseResult{ // !!!
+        match self.simpexpr() {
+            Ok(()) => {
+                return self.expr2();
+            },
+            Err(text)=>return Err(text), 
+        }
     }
 
-    fn expr2(&mut self) -> ParseResult{
-        todo!();
+    fn expr2(&mut self) -> ParseResult{ // nullable
+        if self.any_match_current(&[C1Token::Greater, C1Token::Less, C1Token::GreaterEqual, C1Token::LessEqual, C1Token::Equal, C1Token::NotEqual])
+        {
+            match self.operator() {
+                Ok(()) => {
+                    return self.simpexpr();
+                },
+                Err(text)=>return Err(text), 
+            }
+        }
+
+        else if self.any_match_current(&[C1Token::RightParenthesis, C1Token::Semicolon]) || self.current_token() == None
+        {
+            return Ok(());
+        }
+
+        else 
+        {
+            return Err("Expected: operator or ) or ;".to_string());
+        }        
     }
 
-    fn exprmi(&mut self) -> ParseResult{
-        todo!();
+    fn exprmi(&mut self) -> ParseResult{ // !!! nullable
+        if self.any_match_current(&[C1Token::RightParenthesis, C1Token::Semicolon]) || self.current_token() == None
+        {
+            return Ok(());
+        }
+        else
+        {
+            match self.simpexprmi() {
+                Ok(()) => {
+                    return self.expr2();
+                },
+                Err(text)=>return Err(text), 
+            }
+        }
+
     }
 
-    fn expr_oi(&mut self) -> ParseResult{
-        todo!();
+    fn exproi(&mut self) -> ParseResult{ // !!!
+        match self.simpexproi() {
+            Ok(()) => {
+                return self.expr2();
+            },
+            Err(text)=>return Err(text), 
+        }
     }
 
     fn operator(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::Greater, C1Token::Less, C1Token::GreaterEqual, C1Token::LessEqual, C1Token::Equal, C1Token::NotEqual])
+        {
+            self.eat();
+            return Ok(());
+        }
+
+        else 
+        {
+            return Err("Expected: > or >= or < or <= or == or != ".to_string());
+        }    
+
     }
 
     fn simpexpr(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::Minus])
+        {
+            self.eat()
+        }
+
+        match self.term() { // !!!
+            Ok(()) => {
+                return self.simpexpr2();
+            }
+            Err(text)=>return Err(text), 
+        }
+
     }
 
-    fn simpexpr2(&mut self) -> ParseResult{
-        todo!();
+    fn simpexpr2(&mut self) -> ParseResult{ //nullable
+        if self.any_match_current(&[C1Token::Plus, C1Token::Minus, C1Token::Or])
+        {
+            self.eat();
+            match self.term() {
+                Ok(()) => {
+                    return self.simpexpr2();
+                },
+                Err(text)=>return Err(text), 
+            }
+        }
+
+        else if self.any_match_current(&[C1Token::Greater, C1Token::Less, C1Token::GreaterEqual, C1Token::LessEqual, C1Token::Equal, C1Token::NotEqual, C1Token::RightParenthesis, C1Token::Semicolon]) || self.current_token() == None
+        {
+           return Ok(());
+        }
+        else if self.any_match_current(&[C1Token::RightParenthesis, C1Token::Semicolon]) || self.current_token() == None
+        {
+            return Ok(());
+        }
+        else
+        {
+            return Err("Expected: + or - or || or > or >= or < or <= or == or != or ) or ; in simpexpr2".to_string());
+        }
     }
 
-    fn simpexpr_mi(&mut self) -> ParseResult{
-        todo!();
+    fn simpexprmi(&mut self) -> ParseResult{ //nullable
+        if self.any_match_current(&[C1Token::RightParenthesis, C1Token::Semicolon, C1Token::Greater, C1Token::GreaterEqual, C1Token::Less, C1Token::LessEqual, C1Token::Equal, C1Token::NotEqual]) || self.current_token() == None
+        {
+            return Ok(());
+        }
+        else 
+        {
+            match self.termmi() { // !!!
+                Ok(()) => {
+                    return self.simpexpr2();
+                }
+                Err(text)=>return Err(text), 
+            }
+        }
     }
 
-    fn simpexpr_oi(&mut self) -> ParseResult{
-        todo!();
+    fn simpexproi(&mut self) -> ParseResult{
+        if self.any_match_current(&[C1Token::Minus])
+        {
+            self.eat();
+            match self.term() {
+                Ok(()) => {
+                    return self.simpexpr2();
+                },
+                Err(text)=>return Err(text), 
+            }
+        }
+
+        else if self.any_match_current(&[C1Token::ConstInt, C1Token::ConstFloat, C1Token::ConstBoolean, C1Token::Identifier, C1Token::LeftParenthesis])
+        {
+            match self.termoi() {
+                Ok(()) => {
+                    return self.simpexpr2();
+                },
+                Err(text)=>return Err(text), 
+            }
+        }
+
+        else
+        {
+            return Err("Expected: - or termOI".to_string());
+        }
     }
 
     fn term(&mut self) -> ParseResult{
-        todo!();
+        match self.factor() {
+            Ok(()) => {
+                return self.term2();
+            },
+            Err(text)=>return Err(text), 
+        }
     }
 
-    fn term2(&mut self) -> ParseResult{
-        todo!();
+    fn term2(&mut self) -> ParseResult{ //nullable
+        if self.any_match_current(&[C1Token::Asterisk, C1Token::Slash, C1Token::And])
+        {
+            self.eat();
+            match self.factor()
+            {
+                Ok(()) => {
+                    return self.term2();
+                },
+                Err(text)=>return Err(text), 
+            }
+        }
+
+        else if self.any_match_current(&[C1Token::Greater, C1Token::Less, C1Token::GreaterEqual, C1Token::LessEqual, C1Token::Equal, C1Token::NotEqual, C1Token::RightParenthesis, C1Token::Semicolon, C1Token::Plus, C1Token::Minus, C1Token::Or]) || self.current_token() == None
+        {
+            return Ok(());
+        }
+
+        else 
+        {
+            return Err("Expected: * or / or && or > or < or >= or <= or == or != or ) or ; or + or - or || in term2".to_string());
+        }
+
     }
 
-    fn term_mi(&mut self) -> ParseResult{
-        todo!();
+    fn termmi(&mut self) -> ParseResult{ //nullable
+        if self.any_match_current(&[C1Token::Greater, C1Token::Less, C1Token::GreaterEqual, C1Token::LessEqual, C1Token::Equal, C1Token::NotEqual, C1Token::RightParenthesis, C1Token::Semicolon, C1Token::Plus, C1Token::Minus, C1Token::Or]) || self.current_token() == None
+        {
+            return Ok(());
+        }
+        else
+        {
+            match self.factor2() {
+                Ok(()) => {
+                    return self.term2();
+                },
+                Err(text)=>return Err(text), 
+            }
+        }
     }
 
-    fn term_oi(&mut self) -> ParseResult{
-        todo!();
+    fn termoi(&mut self) -> ParseResult{
+        match self.factoroi() {
+            Ok(()) => {
+                return self.term2();
+            },
+            Err(text)=>return Err(text), 
+        }
     }
 
     fn factor(&mut self) -> ParseResult{
-        todo!();
+        if self.any_match_current(&[C1Token::ConstInt])
+        {
+            self.eat();
+            return Ok(());
+        }
+
+        else if self.any_match_current(&[C1Token::ConstFloat])
+        {
+            self.eat();
+            return Ok(());
+        }
+
+        else if self.any_match_current(&[C1Token::ConstBoolean])
+        {
+            self.eat();
+            return Ok(());
+        }
+
+        else if self.any_match_current(&[C1Token::Identifier])
+        {
+            self.eat();
+            return self.factor2();
+        }
+
+        else if self.any_match_current(&[C1Token::LeftParenthesis])
+        {
+            self.eat();
+            match self.assignment() {
+                Ok(()) => {
+                    return self.check_and_eat_token(&C1Token::RightParenthesis, "Expected: )");
+                },
+                Err(text)=>return Err(text), 
+            }
+        }
+
+        else 
+        {
+            return Err("Expected: ConstInt or ConstFloat or ConstBoolean or Identifier or (".to_string());
+        }
     }
 
-    fn factor2(&mut self) -> ParseResult{
-        todo!();
+    fn factor2(&mut self) -> ParseResult{ //nullable
+        if self.any_match_current(&[C1Token::LeftParenthesis])
+        {
+            return self.function_call();
+        }
+
+        else if self.any_match_current(&[C1Token::RightParenthesis, C1Token::Semicolon, C1Token::Greater, C1Token::Less, C1Token::GreaterEqual, C1Token::LessEqual, C1Token::Equal, C1Token::NotEqual, C1Token::Plus, C1Token::Minus, C1Token::Or, C1Token::Asterisk, C1Token::Slash, C1Token::And]) || self.current_token() == None
+        {
+            return Ok(());
+        }
+
+        else 
+        {
+            return Err("Expected: ( or ) or ; or > or < or >= or <= or == or != or + or - or || or * or / or &&".to_string());
+        }
     }
 
-    fn factor_oi(&mut self) -> ParseResult{
-        todo!();
+    fn factoroi(&mut self) -> ParseResult{
+        if self.any_match_current(&[C1Token::ConstInt])
+        {
+            self.eat();
+            return Ok(());
+        }
+
+        else if self.any_match_current(&[C1Token::ConstFloat])
+        {
+            self.eat();
+            return Ok(());
+        }
+
+        else if self.any_match_current(&[C1Token::ConstBoolean])
+        {
+            self.eat();
+            return Ok(());
+        }
+
+        else if self.any_match_current(&[C1Token::LeftParenthesis])
+        {
+            self.eat();
+            match self.assignment() {
+                Ok(()) => {
+                    return self.check_and_eat_token(&C1Token::RightParenthesis, "Expected: )");
+                },
+                Err(text)=>return Err(text), 
+            }
+        }
+
+        else 
+        {
+            return Err("Expected: ConstInt or ConstFloat or ConstBoolean or (".to_string());
+        }
     }
 
 
@@ -195,7 +644,8 @@
    /// Check whether the current token is equal to the given token. If yes, consume it, otherwise
    /// return an error with the given error message
    fn check_and_eat_token(&mut self, token: &C1Token, error_message: &str) -> ParseResult {
-       if self.current_matches(token) {
+  
+    if self.current_matches(token) {
            self.eat();
            Ok(())
        } else {
@@ -206,8 +656,8 @@
    /// For each token in the given slice, check whether the token is equal to the current token,
    /// consume the current token, and check the next token in the slice against the next token
    /// provided by the lexer.
-   fn check_and_eat_tokens(&mut self, token: &[C1Token], error_message: &str) -> ParseResult {
-       match token
+   fn check_and_eat_tokens(&mut self, token: &[C1Token], error_message: &str) -> ParseResult {  
+    match token
            .iter()
            .map(|t| self.check_and_eat_token(t, error_message))
            .filter(ParseResult::is_err)
