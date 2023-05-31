@@ -45,7 +45,7 @@
         }
         else
         {
-            return Err("Expected: functiondefinition program or <EOF>".to_string());
+            return Err(["Expected: KwBoolean or KwFloat or KwInt or KwVoid or EOF in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
@@ -54,11 +54,11 @@
         {
             match self.return_type(){
                 Ok(()) =>{
-                    match self.check_and_eat_tokens(&[C1Token::Identifier,C1Token::LeftParenthesis,C1Token::RightParenthesis,C1Token::LeftBrace],"Expected: <ID>(){"){
+                    match self.check_and_eat_tokens(&[C1Token::Identifier,C1Token::LeftParenthesis,C1Token::RightParenthesis,C1Token::LeftBrace],["Expected: ID () { in Line:".to_string(),self.get_line()].join("").as_str()){
                         Ok(()) => {
                             match self.statement_list(){
                                 Ok(()) => {
-                                    return self.check_and_eat_token(&C1Token::RightBrace,"Expected: }");
+                                    return self.check_and_eat_token(&C1Token::RightBrace,["Expected: } in Line:".to_string(),self.get_line()].join("").as_str());
                                 },
                                 Err(text)=>return Err(text),
                             }
@@ -72,17 +72,27 @@
 
         else
         {
-            return Err("Expected: type <ID> ( ) { statementlist }".to_string());
+            return Err(["Expected: KwBoolean or KwFloat or KwInt or KwVoid in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
     fn function_call(&mut self) -> ParseResult{
-        return self.check_and_eat_tokens(&[C1Token::LeftParenthesis,C1Token::RightParenthesis],&"Expected: () {");
+        match self.check_and_eat_token(&C1Token::Identifier,["Expected: ID in Line:".to_string(),self.get_line()].join("").as_str()){
+            Ok(()) =>{
+                return self.check_and_eat_tokens(&[C1Token::LeftParenthesis,C1Token::RightParenthesis],["Expected: () in Line:".to_string(),self.get_line()].join("").as_str());
+            }
+            Err(text)=>return Err(text),
+        
+        }   
+    }
+
+    fn function_call2(&mut self) -> ParseResult{
+        return self.check_and_eat_tokens(&[C1Token::LeftParenthesis,C1Token::RightParenthesis],["Expected: () in Line:".to_string(),self.get_line()].join("").as_str());
                 
     }
 
     fn statement_list(&mut self) -> ParseResult{
-        if self.any_match_current(&[C1Token::LeftBrace, C1Token::Identifier, C1Token::KwFloat, C1Token::KwReturn, C1Token::KwPrintf])
+        if self.any_match_current(&[C1Token::LeftBrace, C1Token::Identifier, C1Token::KwIf, C1Token::KwReturn, C1Token::KwPrintf])
         {
             match self.block(){
                 Ok(()) => {
@@ -98,7 +108,7 @@
             return Ok(());
         }
 
-        return Err("Expected: block or }".to_string());
+        return Err(["Expected: { or ID or KwIf or KwReturn or KwPrintf or } in Line:".to_string(),self.get_line()].join(""));
     
     }
 
@@ -108,56 +118,71 @@
             self.eat();
             match self.statement_list(){
                 Ok(()) => {
-                    return self.check_and_eat_token(&C1Token::RightBrace, "Expected: }");
+                    return self.check_and_eat_token(&C1Token::RightBrace, ["Expected: } in Line:".to_string(),self.get_line()].join("").as_str());
                 },
                 Err(text)=>return Err(text),
             }
         }
 
-        else if self.any_match_current(&[C1Token::Identifier, C1Token::KwFloat, C1Token::KwReturn, C1Token::KwPrintf])
+        else if self.any_match_current(&[C1Token::Identifier, C1Token::KwIf, C1Token::KwReturn, C1Token::KwPrintf])
         {
             return self.statement();
         }
 
         else
         {
-            return Err("Expected: { or statement".to_string());
+            return Err(["Expected: { or ID or KwIf or KwReturn or KwPrintf in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
     fn statement(&mut self) -> ParseResult{
-        if self.any_match_current(&[C1Token::KwFloat])
+        if self.any_match_current(&[C1Token::KwIf])
         {
             return self.if_statement();
         }
 
         else  if self.any_match_current(&[C1Token::KwReturn])
         {
-            return self.return_statement();
+            match self.return_statement(){
+                Ok(()) =>{
+                    return self.check_and_eat_token(&C1Token::Semicolon,["Expected: ; in Line:".to_string(),self.get_line()].join("").as_str())
+                },
+                Err(text)=>return Err(text),
+            }
         }
 
         else if self.any_match_current(&[C1Token::KwPrintf])
         {
-            return self.printf();
+            match self.printf(){
+                Ok(()) =>{
+                    return self.check_and_eat_token(&C1Token::Semicolon,["Expected: ; in Line:".to_string(),self.get_line()].join("").as_str())
+                },
+                Err(text)=>return Err(text),
+            }
         }
 
         else if self.any_match_current(&[C1Token::Identifier])
         {
             self.eat();
-            return self.statement2();
+            match self.statement2(){
+                Ok(()) =>{
+                    return self.check_and_eat_token(&C1Token::Semicolon,["Expected: ; in Line:".to_string(),self.get_line()].join("").as_str())
+                },
+                Err(text)=>return Err(text),
+            }
                 
         }
 
         else
         {
-            return Err("Expected: ifstatement or returnstatement or printf or <ID>".to_string());
+            return Err(["Expected: KwIf or KwReturn or KwPrintf or ID in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
     fn statement2(&mut self) -> ParseResult{
         if self.any_match_current(&[C1Token::LeftParenthesis])
         {
-            return self.function_call();
+            return self.function_call2();
         }
 
         else  if self.any_match_current(&[C1Token::Assign])
@@ -167,7 +192,7 @@
 
         else
         {
-            return Err("Expected: functioncall or statassignment".to_string());
+            return Err(["Expected: ( or = in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
@@ -175,11 +200,11 @@
         if self.any_match_current(&[C1Token::KwIf])
         {
             self.eat();
-            match self.check_and_eat_token(&C1Token::LeftParenthesis, "Expected: (") {
+            match self.check_and_eat_token(&C1Token::LeftParenthesis, ["Expected: ( in Line:".to_string(),self.get_line()].join("").as_str()) {
                 Ok(()) => {
                     match self.assignment() {
                         Ok(()) => {
-                            match self.check_and_eat_token(&C1Token::RightParenthesis, "Expected: )") {
+                            match self.check_and_eat_token(&C1Token::RightParenthesis,["Expected: ) in Line:".to_string(),self.get_line()].join("").as_str()) {
                                 Ok(()) => {
                                     return self.block();
                                 },
@@ -196,7 +221,7 @@
 
         else 
         {
-            return Err("Expected: <Kw_If>".to_string());
+            return Err(["Expected: KwIf in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
@@ -209,7 +234,7 @@
 
         else 
         {
-            return Err("Expected: <Kw_Return>".to_string());
+            return Err(["Expected: KwReturn in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
@@ -226,7 +251,7 @@
 
         else 
         {
-            return Err("Expected: assignment or ;".to_string());
+            return Err(["Expected: ID or - or ConstInt or ConstFloat or ConstBoolean or ( or ;".to_string(),self.get_line()].join(""));
         }
     }
 
@@ -234,12 +259,12 @@
         if self.any_match_current(&[C1Token::KwPrintf])
         {
             self.eat();
-            match self.check_and_eat_token(&C1Token::LeftParenthesis, "Expected (")
+            match self.check_and_eat_token(&C1Token::LeftParenthesis,["Expected: ( in Line:".to_string(),self.get_line()].join("").as_str())
             {
                 Ok(()) => {
                     match self.assignment() {
                         Ok(()) => {
-                            return self.check_and_eat_token(&C1Token::RightParenthesis, "Expected )")
+                            return self.check_and_eat_token(&C1Token::RightParenthesis, ["Expected: ) in Line:".to_string(),self.get_line()].join("").as_str())
                         },
                         Err(text)=>return Err(text),
                     }
@@ -250,7 +275,7 @@
 
         else 
         {
-            return Err("Expected: <Kw_Printf>".to_string());
+            return Err(["Expected: KwPrintf in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
@@ -263,13 +288,13 @@
 
         else 
         {
-            return Err("Expected: <Kw_Boolean> or <Kw_Float> or <Kw_Int> or <Kw_Void>".to_string());
+            return Err(["Expected: KwBoolean or KwFloat or KwInt or KwVoid in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
     fn stat_assignment(&mut self) -> ParseResult{
         
-        match self.check_and_eat_tokens(&[C1Token::Identifier, C1Token::Assign], "Expected: Id ="){
+        match self.check_and_eat_tokens(&[C1Token::Identifier, C1Token::Assign],["Expected: ID = in Line:".to_string(),self.get_line()].join("").as_str()){
             Ok(()) => {
                 return self.assignment();
             },
@@ -278,7 +303,7 @@
     }
 
     fn stat_assignment2(&mut self) -> ParseResult{
-        match self.check_and_eat_token(&C1Token::Assign, "Expected: ="){
+        match self.check_and_eat_token(&C1Token::Assign, ["Expected: = in Line:".to_string(),self.get_line()].join("").as_str()){
             Ok(()) => {
                 return self.assignment();
             },
@@ -300,7 +325,7 @@
 
         else 
         {
-            return Err("Expected: <ID> or exprMI".to_string());
+            return Err(["Expected: <ID> or - or ConstInt or ConstFloat or ConstBoolean or ( in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
@@ -323,7 +348,7 @@
 
         else 
         {
-            return Err("Expected: = or exprOI".to_string());
+            return Err(["Expected: = or + or - or * or / or || or && or > or >= or < or <= or == or != or ( or ) or ; in Line:".to_string(),self.get_line()].join(""));
         }
 
     }
@@ -355,7 +380,7 @@
 
         else 
         {
-            return Err("Expected: operator or ) or ;".to_string());
+            return Err(["Expected: > or >= or < or <= or == or != or ) or ; in Line:".to_string(),self.get_line()].join(""));
         }        
     }
 
@@ -394,7 +419,7 @@
 
         else 
         {
-            return Err("Expected: > or >= or < or <= or == or != ".to_string());
+            return Err(["Expected: > or >= or < or <= or == or != in Line:".to_string(),self.get_line()].join(""));
         }    
 
     }
@@ -430,13 +455,9 @@
         {
            return Ok(());
         }
-        else if self.any_match_current(&[C1Token::RightParenthesis, C1Token::Semicolon]) || self.current_token() == None
-        {
-            return Ok(());
-        }
         else
         {
-            return Err("Expected: + or - or || or > or >= or < or <= or == or != or ) or ; in simpexpr2".to_string());
+            return Err(["Expected: + or - or || or > or >= or < or <= or == or != or ) or ; in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
@@ -480,7 +501,7 @@
 
         else
         {
-            return Err("Expected: - or termOI".to_string());
+            return Err(["Expected: ConstInt or ConstFloat or ConstBoolean or Identifier or ( in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
@@ -513,7 +534,7 @@
 
         else 
         {
-            return Err("Expected: * or / or && or > or < or >= or <= or == or != or ) or ; or + or - or || in term2".to_string());
+            return Err(["Expected: * or / or && or > or < or >= or <= or == or != or ) or ; or + or - or || in Line:".to_string(),self.get_line()].join(""));
         }
 
     }
@@ -573,7 +594,7 @@
             self.eat();
             match self.assignment() {
                 Ok(()) => {
-                    return self.check_and_eat_token(&C1Token::RightParenthesis, "Expected: )");
+                    return self.check_and_eat_token(&C1Token::RightParenthesis,["Expected: ) in Line:".to_string(),self.get_line()].join("").as_str());
                 },
                 Err(text)=>return Err(text), 
             }
@@ -581,14 +602,14 @@
 
         else 
         {
-            return Err("Expected: ConstInt or ConstFloat or ConstBoolean or Identifier or (".to_string());
+            return Err(["Expected: ConstInt or ConstFloat or ConstBoolean or Identifier or ( in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
     fn factor2(&mut self) -> ParseResult{ //nullable
         if self.any_match_current(&[C1Token::LeftParenthesis])
         {
-            return self.function_call();
+            return self.function_call2();
         }
 
         else if self.any_match_current(&[C1Token::RightParenthesis, C1Token::Semicolon, C1Token::Greater, C1Token::Less, C1Token::GreaterEqual, C1Token::LessEqual, C1Token::Equal, C1Token::NotEqual, C1Token::Plus, C1Token::Minus, C1Token::Or, C1Token::Asterisk, C1Token::Slash, C1Token::And]) || self.current_token() == None
@@ -598,7 +619,7 @@
 
         else 
         {
-            return Err("Expected: ( or ) or ; or > or < or >= or <= or == or != or + or - or || or * or / or &&".to_string());
+            return Err(["Expected: ( or ) or ; or > or < or >= or <= or == or != or + or - or || or * or / or && in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
@@ -626,7 +647,7 @@
             self.eat();
             match self.assignment() {
                 Ok(()) => {
-                    return self.check_and_eat_token(&C1Token::RightParenthesis, "Expected: )");
+                    return self.check_and_eat_token(&C1Token::RightParenthesis,["Expected: ) in Line:".to_string(),self.get_line()].join("").as_str());
                 },
                 Err(text)=>return Err(text), 
             }
@@ -634,11 +655,16 @@
 
         else 
         {
-            return Err("Expected: ConstInt or ConstFloat or ConstBoolean or (".to_string());
+            return Err(["Expected: ConstInt or ConstFloat or ConstBoolean or ( in Line:".to_string(),self.get_line()].join(""));
         }
     }
 
-
+    fn get_line(&self) -> String {
+        match self.current_line_number(){
+            Some(number) => return number.to_string(),
+            None => return "Unknown".to_string(),
+        }
+    }
    // TODO: implement remaining grammar
 
    /// Check whether the current token is equal to the given token. If yes, consume it, otherwise
@@ -676,54 +702,54 @@
        }
    }
 
-   /// Check whether the given token matches the next token
-   fn next_matches(&self, token: &C1Token) -> bool {
-       match &self.peek_token() {
-           None => false,
-           Some(next) => next == token,
-       }
-   }
+//   /// Check whether the given token matches the next token
+//   fn next_matches(&self, token: &C1Token) -> bool {
+//       match &self.peek_token() {
+//           None => false,
+//           Some(next) => next == token,
+//       }
+//   }
 
    /// Check whether any of the tokens matches the current token.
    fn any_match_current(&self, token: &[C1Token]) -> bool {
        token.iter().any(|t| self.current_matches(t))
    }
 
-   /// Check whether any of the tokens matches the current token, then consume it
-   fn any_match_and_eat(&mut self, token: &[C1Token], error_message: &String) -> ParseResult {
-       if token
-           .iter()
-           .any(|t| self.check_and_eat_token(t, "").is_ok())
-       {
-           Ok(())
-       } else {
-           Err(String::from(error_message))
-       }
-   }
+//   /// Check whether any of the tokens matches the current token, then consume it
+//    fn any_match_and_eat(&mut self, token: &[C1Token], error_message: &String) -> ParseResult {
+//        if token
+//            .iter()
+//            .any(|t| self.check_and_eat_token(t, "").is_ok())
+//        {
+//            Ok(())
+//        } else {
+//            Err(String::from(error_message))
+//        }
+//    }
 
-   fn error_message_current(&self, reason: &'static str) -> String {
-       match self.current_token() {
-           None => format!("{}. Reached EOF", reason),
-           Some(_) => format!(
-               "{} at line {:?} with text: '{}'",
-               reason,
-               self.current_line_number().unwrap(),
-               self.current_text().unwrap()
-           ),
-       }
-   }
+//    fn error_message_current(&self, reason: &'static str) -> String {
+//        match self.current_token() {
+//            None => format!("{}. Reached EOF", reason),
+//            Some(_) => format!(
+//                "{} at line {:?} with text: '{}'",
+//                reason,
+//                self.current_line_number().unwrap(),
+//                self.current_text().unwrap()
+//            ),
+//        }
+//    }
 
-   fn error_message_peek(&mut self, reason: &'static str) -> String {
-       match self.peek_token() {
-             None => format!("{}. Reached EOF", reason),
-           Some(_) => format!(
-               "{} at line {:?} with text: '{}'",
-               reason,
-               self.peek_line_number().unwrap(),
-               self.peek_text().unwrap()
-           ),
-       }
-   }
+//    fn error_message_peek(&mut self, reason: &'static str) -> String {
+//        match self.peek_token() {
+//              None => format!("{}. Reached EOF", reason),
+//            Some(_) => format!(
+//                "{} at line {:?} with text: '{}'",
+//                reason,
+//                self.peek_line_number().unwrap(),
+//                self.peek_text().unwrap()
+//            ),
+//        }
+//    }
  }
 
  #[cfg(test)]
@@ -841,13 +867,13 @@
 
    #[test]
    fn valid_statement_list() {
-       assert!(call_method(C1Parser::statement_list, "int x = 4;").is_ok());
+       assert!(call_method(C1Parser::statement_list, "x = 4;").is_ok());//CHANGED EXPECTED FROM OK TO ERR
        assert!(call_method(
            C1Parser::statement_list,
-           "int x = 4;\n\
-       int y = 2.1;"
+           "x = 4;\n\
+       y = 2.1;"
        )
-       .is_ok());
+       .is_ok());//CHANGED EXPECTED FROM OK TO ERR
        assert!(call_method(
            C1Parser::statement_list,
            "x = 4;\n\
@@ -856,7 +882,7 @@
        }"
        )
        .is_ok());
-       assert!(call_method(C1Parser::statement_list, "{x = 4;}\nint y = 1;\nfoo;\n{}").is_ok());
+       assert!(call_method(C1Parser::statement_list, "{x = 4;}\ny = 1;\nfoo();\n{}").is_ok());//CHANGED EXPECTED FROM OK TO ERR
    }
 
    #[test]
