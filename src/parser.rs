@@ -108,7 +108,7 @@
             return Ok(());
         }
 
-        return Err(["Expected: { or ID or KwIf or KwReturn or KwPrintf or } in Line:".to_string(),self.get_line()].join(""));
+        return Err(["Expected: { or ID or KwIf or KwReturn or KwPrintf or } in Line:".to_string(),self.get_line()].join(""));//HERE
     
     }
 
