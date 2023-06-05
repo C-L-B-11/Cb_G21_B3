@@ -968,6 +968,7 @@
        //assert!(call_method(C1Parser::stat_assignment, "x = y").is_ok());
        //assert!(call_method(C1Parser::stat_assignment, "x =y").is_ok());
        //assert!(call_method(C1Parser::stat_assignment, "x =y + t").is_ok());
+       
    }
 
    #[test]
